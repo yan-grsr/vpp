@@ -5,11 +5,12 @@
 //#define SIP_IP     "10.212.11.240"   // IP du serveur ou peer SIP
 //#define SIP_USER   "alex"
 
-#define SIP_SERVER  "10.141.6.226"
-#define SIP_USER    "35"
+//#define SIP_SERVER  "10.141.6.226"
 
-#define SIP_PASSWD  "pswdpjsip"
-
+// #define SIP_USER    "35"
+// #define SIP_PASSWD  "pswdpjsip"
+#define SIP_USER    "31"
+#define SIP_PASSWD  "pswd1"
 
 /* Callback called by the library upon receiving incoming call */
 static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
@@ -76,15 +77,18 @@ int main(int argc, char *argv[])
     pjsua_acc_id acc_id;
     pj_status_t status;
 
+    char id[256];
+    char reg_uri[256];
+
     /* Create pjsua first! */
     status = pjsua_create();
     if (status != PJ_SUCCESS) error_exit("Error in pjsua_create()", status);
 
     /* If argument is specified, it's got to be a valid SIP URL */
-    if (argc > 1) {
-        status = pjsua_verify_url(argv[1]);
-        if (status != PJ_SUCCESS) error_exit("Invalid URL in argv", status);
-    }
+    // if (argc > 2) {
+    //     status = pjsua_verify_url(argv[2]);
+    //     if (status != PJ_SUCCESS) error_exit("Invalid URL in argv", status);
+    // }
 
     /* Init pjsua */
     {
@@ -113,6 +117,9 @@ int main(int argc, char *argv[])
         if (status != PJ_SUCCESS) error_exit("Error creating transport", status);
     }
 
+    // Set null sound device for testing
+    //pjsua_set_null_snd_dev();
+
     /* Initialization is done, now start pjsua */
     status = pjsua_start();
     if (status != PJ_SUCCESS) error_exit("Error starting pjsua", status);
@@ -123,8 +130,10 @@ int main(int argc, char *argv[])
 
         pjsua_acc_config_default(&cfg);
         //cfg.id = pj_str("sip:" SIP_USER "@" SIP_IP ":5060");
-        cfg.id = pj_str("sip:" SIP_USER "@" SIP_SERVER);
-        cfg.reg_uri = pj_str("sip:" SIP_SERVER);
+        snprintf(id, sizeof(id), "sip:%s@%s", SIP_USER, argv[1]);
+        cfg.id = pj_str(id);
+        snprintf(reg_uri, sizeof(reg_uri), "sip:%s", argv[1]);
+        cfg.reg_uri = pj_str(reg_uri);
         cfg.cred_count = 1;
         cfg.cred_info[0].realm = pj_str("*");
         cfg.cred_info[0].scheme = pj_str("digest");
@@ -141,8 +150,9 @@ int main(int argc, char *argv[])
     }
 
     /* If URL is specified, make call to the URL. */
-    if (argc > 1) {
-        pj_str_t uri = pj_str(argv[1]);
+    if (argc > 2) {
+        snprintf(id, sizeof(id), "sip:%s@%s", argv[2], argv[1]);
+        pj_str_t uri = pj_str(id);
         status = pjsua_call_make_call(acc_id, &uri, 0, NULL, NULL, NULL);
         if (status != PJ_SUCCESS) error_exit("Error making call", status);
     }

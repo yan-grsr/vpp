@@ -1,4 +1,5 @@
 #include <pjsua-lib/pjsua.h>
+#include "ringer.h"
 
 #define THIS_FILE       "APP"
 
@@ -9,6 +10,8 @@
 #define SIP_USER    "35"
 
 #define SIP_PASSWD  "pswdpjsip"
+
+static pjsua_call_id current_call_id = PJSUA_INVALID_ID;
 
 
 /* Callback called by the library upon receiving incoming call */
@@ -23,12 +26,14 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
 
     pjsua_call_get_info(call_id, &ci);
 
-    PJ_LOG(3,(THIS_FILE, "Incoming call from %.*s!!",
-                         (int)ci.remote_info.slen,
-                         ci.remote_info.ptr));
+    PJ_LOG(3,(THIS_FILE, "Incoming call from %.*s!!", (int)ci.remote_info.slen, ci.remote_info.ptr));
 
     /* Automatically answer incoming calls with 200/OK */
-    pjsua_call_answer(call_id, 200, NULL, NULL);
+    // pjsua_call_answer(call_id, 200, NULL, NULL);
+    
+    //Instead, just ring
+    current_call_id = call_id;
+    ringer_start();
 }
 
 /* Callback called by the library when call's state has changed */
@@ -39,9 +44,15 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
     PJ_UNUSED_ARG(e);
 
     pjsua_call_get_info(call_id, &ci);
-    PJ_LOG(3,(THIS_FILE, "Call %d state=%.*s", call_id,
-                         (int)ci.state_text.slen,
-                         ci.state_text.ptr));
+    PJ_LOG(3,(THIS_FILE, "Call %d state=%.*s", call_id, (int)ci.state_text.slen, ci.state_text.ptr));
+
+    // STOP RINGING WHEN WE STOP RECEIVING CALL
+    if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
+        ringer_stop();
+        current_call_id = PJSUA_INVALID_ID; 
+    } else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+        ringer_stop(); 
+    }
 }
 
 /* Callback called by the library when call's media state has changed */
@@ -162,7 +173,15 @@ int main(int argc, char *argv[])
         
         if (option[0] == 'h')
             pjsua_call_hangup_all();
+
+        // TO ACCEPT INCOMING CALLS
+        if (option[0] == 'a') {
+            pjsua_call_answer(current_call_id, 200, NULL, NULL);
+            ringer_stop();
+        }
+    
     }
+    
 
     /* Destroy pjsua */
     pjsua_destroy();
